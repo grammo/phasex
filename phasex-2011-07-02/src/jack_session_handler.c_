@@ -1,0 +1,113 @@
+
+
+int gui_session_cb( void *data )
+{
+    jack_session_event_t *ev = (jack_session_event_t *) data;
+    char filename[256];
+    char command[256];
+
+    snprintf( filename, sizeof(filename), "%smyfile.state", ev->session_dir );
+    snprintf( command,  sizeof(command),  "my_app -U %s ${SESSION_DIR}myfile.state", ev->client_uuid );
+	
+    your_save_function( filename );
+
+    ev->command_line = strdup(command);
+    jack_session_reply( jack_client, ev );
+
+    if( ev->type == JackSessionSaveAndQuit )
+         gtk_main_quit();
+
+    jack_session_event_free( ev );
+
+    return 0;
+}
+
+void session_cb( jack_session_event_t *event, void *arg )
+{
+    g_idle_add( gui_session_cb, event );
+}
+
+
+
+now we must make sure that the -U <uuid> option specifies this parameter to jack_client_open() again.
+
+    char *uuid=NULL; // fill it from getopt or however you parse commandline. 
+    
+    jack_client_open( "myapp", JackSessionID, NULL, uuid )
+    
+    
+
+
+/*
+
+USER_PATCH_DIR
+
+
+            save_patch(l_path, 0);
+            sprintf(l_path, "%s/phasex.map", lash_buffer);
+            save_midimap(l_path);
+
+
+
+            sprintf(l_path, "%s/phasex.phx", lash_buffer);
+            read_patch(l_path, 0);
+            sprintf(l_path, "%s/phasex.map", lash_buffer);
+            read_midimap(l_path);
+
+*/
+
+
+
+
+void
+session_callback (jack_session_event_t *event, void *arg)
+{
+        // this is a direct reply and we dont have state to save here.
+        // in a gtk app we would forward the event to the gui thread
+        // using g_idle_add() and execute similar code there.
+
+	char retval[100];
+
+	snprintf (retval, 100, "jack_simple_client %s", event->client_uuid);
+	event->command_line = strdup (retval);
+
+	jack_session_reply( client, event );
+
+	if (event->type == JackSessionSaveAndQuit) {
+		simple_quit = 1;
+	}
+
+	jack_session_event_free (event);
+}
+
+
+
+int 
+main( int argc, char **argv )
+{
+
+        // [some stuff deleted]
+
+	if( argc == 1 )
+		client = jack_client_open (client_name, JackNullOption, &status );
+	else if( argc == 2 )
+		client = jack_client_open (client_name, JackSessionID, &status, argv[1] );
+
+        // [some more stuff]
+
+	/* tell the JACK server to call `session_callback()' if
+	   the session is saved.
+	*/
+
+	jack_set_session_callback (client, session_callback, NULL);
+
+        // [even more stuff]
+
+	while (!simple_quit)
+		sleep(1);
+
+}
+
+
+
+
